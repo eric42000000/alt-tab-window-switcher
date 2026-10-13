@@ -15,12 +15,11 @@ AltTab Window Switcher is an independent app. It does not use or require the sep
 
 ## Install
 
-1. Download the latest `AltTabWindowSwitcher-macOS-universal.zip` from the repository’s **Releases** page.
-2. Unzip it and drag `AltTabWindowSwitcher.app` into **Applications**.
-3. Open the app. In **System Settings → Privacy & Security → Accessibility**, enable **AltTab Window Switcher**, then quit and reopen it. This permission is required for the global shortcut and for raising the selected window.
-4. The first time you open the switcher, macOS may ask for **Screen Recording** access. It is optional: allow it for real window thumbnails, or choose **Use Wireframes** to continue without it.
+[Download the macOS installer](https://github.com/eric42000000/alt-tab-window-switcher/releases/latest/download/AltTabWindowSwitcher.dmg) from the latest release. Open the disk image, drag **AltTab Window Switcher** onto the **Applications** shortcut in the window, eject the disk image, and launch the app from Applications.
 
-If there is no downloadable release yet, build the app from source using the steps below.
+The first launch requires **Accessibility** access for the global shortcut and window switching. Enable **AltTab Window Switcher** under **System Settings → Privacy & Security → Accessibility**, then quit and reopen the app. **Screen Recording** is optional: allow it for window thumbnails, or choose **Use Wireframes** instead.
+
+The download link becomes available after the first signed and notarized release. Until then, build the app from source using the steps below.
 
 ## Use
 
@@ -59,10 +58,11 @@ xcode-select --install
 git clone https://github.com/eric42000000/alt-tab-window-switcher.git
 cd alt-tab-window-switcher
 ./build_app.sh
+./package_app.sh
 open AltTabWindowSwitcher.app
 ```
 
-The local build is ad-hoc signed for development. To sign with a certificate installed in your login keychain, set `SIGNING_IDENTITY`:
+`./package_app.sh` creates a drag-to-Applications installer at `dist/AltTabWindowSwitcher.dmg`. Local builds are ad-hoc signed for development and may trigger a Gatekeeper warning when downloaded on another Mac. To sign a local build with a certificate installed in your login keychain, set `SIGNING_IDENTITY`:
 
 ```sh
 SIGNING_IDENTITY="Apple Development: Your Name (TEAMID)" ./build_app.sh
@@ -74,7 +74,7 @@ The project uses Swift Package Manager and has no third-party package dependenci
 
 ## Releases and signing
 
-Pushing a version tag such as `v1.8` runs the GitHub Actions release workflow. It checks that the tag matches `CFBundleShortVersionString`, builds a universal arm64/x86_64 app, signs it, submits it to Apple for notarization, staples the ticket, and publishes a ZIP plus SHA-256 checksum.
+Pushing a version tag such as `v1.8` runs the GitHub Actions release workflow. It checks that the tag matches `CFBundleShortVersionString`, builds a universal arm64/x86_64 app, signs it, notarizes the app and drag-to-Applications DMG with Apple, staples the tickets, and publishes the DMG as the main download. A ZIP fallback and SHA-256 checksums are included.
 
 Before enabling that workflow, configure these repository Actions secrets:
 
@@ -87,7 +87,7 @@ Before enabling that workflow, configure these repository Actions secrets:
 | `APPLE_TEAM_ID` | Apple Developer team ID |
 | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for the Apple Account |
 
-Keep signing credentials only in GitHub Actions secrets—never commit certificates, passwords, or private keys. Apple Developer ID signing and notarization are what make a downloaded release launch cleanly through macOS Gatekeeper. Local ad-hoc builds are for development, not public binary distribution.
+Keep signing credentials only in GitHub Actions secrets—never commit certificates, passwords, or private keys. Apple Developer ID signing and notarization let users open a downloaded release without the unidentified-developer warning. Local ad-hoc builds are for development, not public binary distribution. An Apple Development certificate is not a substitute for a Developer ID Application certificate.
 
 Export the Developer ID Application certificate together with its private key from Keychain Access as a password-protected `.p12` file. On macOS, encode it for the GitHub secret with `base64 -i DeveloperID.p12 | pbcopy`. Find the identity string for `APPLE_SIGNING_IDENTITY` with `security find-identity -v -p codesigning`. Use an Apple app-specific password for notarization, not your normal account password.
 
@@ -98,12 +98,12 @@ To publish a release:
 1. Add the secrets above under **Repository Settings → Secrets and variables → Actions**.
 2. Update `CFBundleShortVersionString` and `CFBundleVersion` in `Info.plist`, then merge the release commit to `main`.
 3. Create and push a tag matching the marketing version, for example `git tag v1.9 && git push origin v1.9`.
-4. Wait for the **Release** workflow to finish; it creates the GitHub release and attaches the notarized app ZIP and checksum.
+4. Wait for the **Release** workflow to finish; it creates a GitHub release with the notarized DMG, ZIP fallback, and checksums. The download link in this README points directly to the latest DMG.
 
-To check a downloaded archive’s checksum, place the ZIP and its `.sha256` file in the same directory and run:
+To check a downloaded DMG’s checksum, place the DMG and its `.sha256` file in the same directory and run:
 
 ```sh
-shasum -a 256 -c AltTabWindowSwitcher-macOS-universal.zip.sha256
+shasum -a 256 -c AltTabWindowSwitcher.dmg.sha256
 ```
 
 ## Troubleshooting

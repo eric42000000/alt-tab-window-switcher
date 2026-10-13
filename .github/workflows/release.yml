@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -78,7 +78,9 @@ jobs:
           set -euo pipefail
           APP_PATH="$GITHUB_WORKSPACE/AltTabWindowSwitcher.app"
           ARCHIVE_PATH="$RUNNER_TEMP/AltTabWindowSwitcher-macOS-universal.zip"
-          CHECKSUM_PATH="$RUNNER_TEMP/AltTabWindowSwitcher-macOS-universal.zip.sha256"
+          ZIP_CHECKSUM_PATH="$RUNNER_TEMP/AltTabWindowSwitcher-macOS-universal.zip.sha256"
+          DMG_PATH="$GITHUB_WORKSPACE/dist/AltTabWindowSwitcher.dmg"
+          DMG_CHECKSUM_PATH="$GITHUB_WORKSPACE/dist/AltTabWindowSwitcher.dmg.sha256"
 
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ARCHIVE_PATH"
           xcrun notarytool submit "$ARCHIVE_PATH" \
@@ -92,21 +94,39 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ARCHIVE_PATH"
+          ./package_app.sh
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+          xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
+
           (
             cd "$RUNNER_TEMP"
-            shasum -a 256 "$(basename "$ARCHIVE_PATH")" > "$(basename "$CHECKSUM_PATH")"
+            shasum -a 256 "$(basename "$ARCHIVE_PATH")" > "$(basename "$ZIP_CHECKSUM_PATH")"
+          )
+          (
+            cd "$(dirname "$DMG_PATH")"
+            shasum -a 256 "$(basename "$DMG_PATH")" > "$(basename "$DMG_CHECKSUM_PATH")"
           )
           echo "ARCHIVE_PATH=$ARCHIVE_PATH" >> "$GITHUB_ENV"
-          echo "CHECKSUM_PATH=$CHECKSUM_PATH" >> "$GITHUB_ENV"
+          echo "ZIP_CHECKSUM_PATH=$ZIP_CHECKSUM_PATH" >> "$GITHUB_ENV"
+          echo "DMG_PATH=$DMG_PATH" >> "$GITHUB_ENV"
+          echo "DMG_CHECKSUM_PATH=$DMG_CHECKSUM_PATH" >> "$GITHUB_ENV"
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
+            "$DMG_PATH" \
+            "$DMG_CHECKSUM_PATH" \
             "$ARCHIVE_PATH" \
-            "$CHECKSUM_PATH" \
+            "$ZIP_CHECKSUM_PATH" \
             --title "AltTab Window Switcher ${GITHUB_REF_NAME#v}" \
+            --latest \
             --generate-notes
 
       - name: Remove temporary signing keychain

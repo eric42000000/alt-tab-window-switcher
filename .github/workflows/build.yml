@@ -10,7 +10,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-15
+    # NSGlassEffectView is part of the macOS 26 SDK.
+    runs-on: macos-26
     steps:
       - name: Check out source
         uses: actions/checkout@v4
